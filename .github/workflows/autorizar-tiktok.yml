@@ -1,0 +1,33 @@
+name: Autorizar TikTok
+
+on:
+  workflow_dispatch:
+    inputs:
+      callback_url:
+        description: "Déjalo vacío la primera vez. La segunda, pega aquí la URL completa a la que te envió TikTok."
+        required: false
+        default: ""
+
+concurrency:
+  group: tiktok
+  cancel-in-progress: false
+
+jobs:
+  autorizar:
+    runs-on: ubuntu-latest
+    env:
+      TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+      TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+      GH_TOKEN: ${{ secrets.GH_PAT }}
+      CALLBACK_URL: ${{ inputs.callback_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Paso 1 - mostrar la URL de autorización
+        if: inputs.callback_url == ''
+        run: |
+          echo "Abre esta URL en tu navegador con la sesión del canal iniciada:"
+          uv run noalasdrogas auth-url
+      - name: Paso 2 - guardar el token
+        if: inputs.callback_url != ''
+        run: uv run noalasdrogas auth-exchange "$CALLBACK_URL"
