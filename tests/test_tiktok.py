@@ -152,7 +152,7 @@ def test_cli_publishes_oldest_video_and_moves_it(cli_env):
     (root / "queue" / "001.txt").write_text("texto del primero\n", encoding="utf-8")
     run_publish(root)
 
-    assert saved == ["rft.nuevo"]
+    assert saved == ["valor", "rft.nuevo"]
     init = next(r for r in fake.requests if r.url.path.endswith("/video/init/"))
     assert json.loads(init.content)["post_info"]["title"] == "texto del primero"
     assert sorted(p.name for p in (root / "published").iterdir()) == ["001.mp4", "001.txt"]
@@ -172,8 +172,21 @@ def test_cli_rejects_privacy_not_allowed_but_still_saves_token(cli_env, monkeypa
     monkeypatch.setenv("TIKTOK_PRIVACY", "PUBLIC_TO_EVERYONE")
     with pytest.raises(SystemExit, match="no permitida"):
         run_publish(root)
-    assert saved == ["rft.nuevo"]
+    assert saved == ["valor", "rft.nuevo"]
     assert (root / "queue" / "001.mp4").exists()
+
+
+def test_cli_does_not_rotate_token_if_secret_cannot_be_written(cli_env, monkeypatch):
+    fake, saved, root = cli_env
+    (root / "queue" / "001.mp4").write_bytes(b"uno")
+
+    def fail(_):
+        raise OSError("gh no disponible")
+
+    monkeypatch.setattr(cli, "save_refresh_token", fail)
+    with pytest.raises(SystemExit, match="GH_PAT"):
+        run_publish(root)
+    assert fake.requests == []
 
 
 def test_auth_exchange_checks_state(cli_env, capsys):

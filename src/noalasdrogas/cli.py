@@ -78,7 +78,14 @@ def cmd_publish(args: argparse.Namespace) -> None:
         return
 
     client = TikTok(env("TIKTOK_CLIENT_KEY"), env("TIKTOK_CLIENT_SECRET"))
-    tokens = client.refresh(env(REFRESH_SECRET))
+    current = env(REFRESH_SECRET)
+    # TikTok invalida el token anterior al renovarlo. Se comprueba ANTES que se
+    # pueden escribir secretos, reescribiendo el actual; si falla, no se renueva.
+    try:
+        save_refresh_token(current)
+    except (subprocess.CalledProcessError, OSError):
+        sys.exit("No se pueden escribir secretos del repo: revisa GH_PAT. No se ha tocado el token de TikTok.")
+    tokens = client.refresh(current)
     # Antes que nada: si esto no se guarda, la siguiente ejecución no podrá autenticarse.
     save_refresh_token(tokens.refresh_token)
 
