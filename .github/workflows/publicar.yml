@@ -1,0 +1,37 @@
+name: Publicar en TikTok
+
+on:
+  schedule:
+    # Horas en UTC. Cada ejecución publica UN vídeo de queue/ (si hay alguno).
+    - cron: "17 12 * * *"
+    - cron: "17 18 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: tiktok
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Publicar el siguiente vídeo de la cola
+        env:
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+          TIKTOK_PRIVACY: ${{ vars.TIKTOK_PRIVACY }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: uv run noalasdrogas publish
+      - name: Mover el vídeo publicado a published/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A queue published
+          git diff --cached --quiet || git commit -m "Marcar vídeo como publicado"
+          git push
